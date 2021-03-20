@@ -143,6 +143,30 @@ auc <- auc@y.values[[1]]
 auc
 ```
 
+## Confusion Matrix Logistic
+```{r}
+install.packages("caret")
+library(caret)
+```
+
+```{r}
+install.packages("lest")
+library(lest)
+```
+
+```{r}
+pred <- case_when(
+  glm_mkt_value >= 0.5 ~ "1",
+  glm_mkt_value < 0.5 ~ "0"
+)
+```
+
+```{r}
+response <- test_mkt$Response
+table(pred, response)
+mean(pred == response)
+```
+
 ## Decision Tree
 ```{r}
 ##install.packages("rpart.plot")	
@@ -157,6 +181,17 @@ library(rpart.plot)
 tree_mkt = rpart(factor(Response)~Education+Marital_Status+Teenhome+Recency+MntFruits+MntMeatProducts+MntGoldProds+NumDealsPurchases+NumWebPurchases+NumCatalogPurchases+NumStorePurchases+NumWebVisitsMonth+Complain+previous_response+tenure, data = train_mkt, method='class')
 require("rpart.plot")
 rpart.plot::rpart.plot(tree_mkt, type = 2, fallen.leaves = FALSE, extra = 4)
+```
+
+## Confusion Matrix Tree
+```{r}
+pred_tree <- predict(tree_mkt, newdata = test_mkt, type="class")
+```
+
+```{r}
+response <- test_mkt$Response
+table(pred_tree, response)
+mean(pred_tree == response)
 ```
 
 # Random Forest 
@@ -175,11 +210,18 @@ rf_mkt
 pred_mkt <- as.numeric(as.character(predict(rf_mkt, newdata = test_mkt)))
 ```
 
+## Importance Plot
 ```{r}
 importance(rf_mkt)
 varImpPlot(rf_mkt)
 ```
 
+## Confusion Matrix Random Forest
+```{r}
+response <- test_mkt$Response
+table(pred_mkt, response)
+mean(pred_mkt == response)
+```
 
 
 
