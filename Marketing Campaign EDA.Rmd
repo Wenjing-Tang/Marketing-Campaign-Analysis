@@ -1,0 +1,383 @@
+---
+title: "Marketing Campaign EDA"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(dplyr)
+```
+
+```{r}
+mkt <- read.csv("marketing_campaign.csv", sep = ';')
+```
+
+```{r}
+str(mkt)
+```
+
+## Data Cleaning -- Missing Values
+```{r}
+income_na <- sum(is.na(mkt$Income))
+income_na
+```
+
+```{r}
+mkt$Income <- ifelse(is.na(mkt$Income), round(mean(mkt$Income, na.rm = TRUE), 0), mkt$Income)
+```
+
+```{r}
+income_no_na <- sum(is.na(mkt$Income))
+income_no_na
+```
+
+## Data Preparation -- Variable Manipulation
+```{r}
+mkt$previous_response <- mkt$AcceptedCmp1+mkt$AcceptedCmp2+mkt$AcceptedCmp3+mkt$AcceptedCmp4+ mkt$AcceptedCmp5
+```
+
+```{r}
+library(lubridate)
+```
+
+```{r}
+mkt$year = substr(mkt$Dt_Customer, 1, 4)
+mkt$date_now <- today()
+mkt$year_now = substr(mkt$date_now, 1, 4)
+mkt$tenure = as.numeric(mkt$year_now) - as.numeric(mkt$year)
+mkt$Age = as.numeric(mkt$year_now) - as.numeric(mkt$Year_Birth)
+```
+
+```{r}
+mkt_new <- mkt[ , c(3:7,9:30, 34:35)]
+```
+
+```{r}
+unique(mkt_new$Marital_Status)
+```
+
+```{r}
+Single <- c('Single')
+Married <- c("Together", "Married")
+Alone <- c("Divorced", "Widow", "Alone")
+Not_sure <- c("Absurd", "YOLO")
+```
+
+```{r}
+mkt_new$Marital_Status = sapply(as.vector(mkt_new$Marital_Status), function(x) if(x %in% Single) "Single" else x )
+mkt_new$Marital_Status = sapply(as.vector(mkt_new$Marital_Status), function(x) if(x %in% Married) "Married" else x )
+mkt_new$Marital_Status = sapply(as.vector(mkt_new$Marital_Status), function(x) if(x %in% Alone) "Alone" else x )
+mkt_new$Marital_Status = sapply(as.vector(mkt_new$Marital_Status), function(x) if(x %in% Not_sure) "Not_sure" else x )
+```
+
+```{r}
+unique(mkt_new$Marital_Status)
+```
+
+## 1D Marginal Distribution
+```{r}
+library(ggplot2)
+library(gridExtra)
+```
+
+## Bar Chart
+```{r}
+plot_education <- ggplot(data = mkt_new, aes(x = factor(Education), fill = factor(Education))) +
+  geom_bar() +
+  ggtitle("Education") +
+  guides(fill=FALSE)+
+  xlab("Education") 
+
+plot_Marital_Status <- ggplot(data = mkt_new, aes(x = factor(Marital_Status), fill = factor(Marital_Status))) +
+  geom_bar() +
+  ggtitle("Marital Status") +
+  guides(fill=FALSE)+
+  xlab("Marital Status") 
+
+plot_Kidhome <- ggplot(data = mkt_new, aes(x = factor(Kidhome), fill = factor(Kidhome))) +
+  geom_bar() +
+  ggtitle("Kidhome") +
+  guides(fill=FALSE)+
+  xlab("Kidhome") 
+
+plot_Teenhome <- ggplot(data = mkt_new, aes(x = factor(Teenhome), fill = factor(Teenhome))) +
+  geom_bar() +
+  ggtitle("Teenhome") +
+  guides(fill=FALSE)+
+  xlab("Teenhome") 
+
+grid.arrange(plot_education, plot_Marital_Status, plot_Kidhome, plot_Teenhome, ncol=2)
+```
+
+## NumDealsPurchases
+```{r}
+unique(mkt_new$NumDealsPurchases)
+```
+
+## NumWebPurchases
+```{r}
+unique(mkt_new$NumWebPurchases)
+```
+
+## NumCatalogPurchases
+```{r}
+unique(mkt_new$NumCatalogPurchases)
+```
+
+## NumStorePurchases
+```{r}
+unique(mkt_new$NumStorePurchases)
+```
+
+```{r}
+plot_NumDealsPurchases <- ggplot(data = mkt_new, aes(x = factor(NumDealsPurchases), fill = factor(NumDealsPurchases))) +
+  geom_bar() +
+  ggtitle("Number of DealsPurchases") +
+  guides(fill=FALSE)+
+  xlab("Number of DealsPurchases") 
+
+plot_NumWebPurchases <- ggplot(data = mkt_new, aes(x = factor(NumWebPurchases), fill = factor(NumWebPurchases))) +
+  geom_bar() +
+  ggtitle("Number of WebPurchases") +
+  guides(fill=FALSE)+
+  xlab("Number of WebPurchases") 
+
+plot_NumCatalogPurchases <- ggplot(data = mkt_new, aes(x = factor(NumCatalogPurchases), fill = factor(NumCatalogPurchases))) +
+  geom_bar() +
+  ggtitle("Number of CatalogPurchases") +
+  guides(fill=FALSE)+
+  xlab("Number of CatalogPurchases") 
+
+plot_NumStorePurchases <- ggplot(data = mkt_new, aes(x = factor(NumStorePurchases), fill = factor(NumStorePurchases))) +
+  geom_bar() +
+  ggtitle("Number of StorePurchases") +
+  guides(fill=FALSE)+
+  xlab("Number of StorePurchases") 
+
+grid.arrange(plot_NumDealsPurchases, plot_NumWebPurchases, plot_NumCatalogPurchases, plot_NumStorePurchases, ncol=2)
+```
+
+## Marital Status
+```{r}
+ms = mkt_new$Marital_Status
+as.data.frame(sort(table(ms),decreasing = TRUE))
+```
+
+## Histogram
+```{r}
+plot_Income <- ggplot(mkt_new, aes(x=log(Income), fill="#FF6666")) +
+  geom_histogram(color="white",alpha=0.7) +
+  labs(title="Income") +
+  xlab("Income") +
+  theme(legend.position="none", plot.title=element_text(hjust=0.5))
+
+plot_Recency <- ggplot(mkt_new, aes(x=Recency)) +
+  geom_histogram(color="white",alpha=0.7, fill="darkgreen") +
+  labs(title="Recency") +
+  xlab("Recency") +
+  theme(legend.position="none", plot.title=element_text(hjust=0.5))
+
+plot_MntWines <- ggplot(mkt_new, aes(x=log(mkt_new$MntWines+1))) +
+  geom_histogram(color="white",alpha=0.7, fill="orange") +
+  labs(title="Amount of Wines Purchased") +
+  xlab("Amount of Wines Purchased") +
+  theme(legend.position="none", plot.title=element_text(hjust=0.5))
+
+plot_MntFruits <- ggplot(mkt_new, aes(x=log(mkt_new$MntFruits))) +
+  geom_histogram(color="white",alpha=0.7, fill="blue") +
+  labs(title="Amount of Fruits Purchased") +
+  xlab("Amount of Fruits Purchased") +
+  theme(legend.position="none", plot.title=element_text(hjust=0.5))
+
+grid.arrange(plot_Income, plot_Recency, plot_MntWines, plot_MntFruits, ncol=2)
+```
+
+```{r}
+plot_Meat <- ggplot(mkt_new, aes(x=log(mkt_new$MntMeatProducts))) +
+  geom_histogram(color="white",alpha=0.7, fill="dark red") +
+  labs(title="Amount of Meat Purchased") +
+  xlab("Amount of Meat Purchased") +
+  theme(legend.position="none", plot.title=element_text(hjust=0.5))
+
+plot_fish <- ggplot(mkt_new, aes(x=log(mkt_new$MntFishProducts))) +
+  geom_histogram(color="white",alpha=0.7, fill="dark orange") +
+  labs(title="Amount of Fish Purchased") +
+  xlab("Amount of Fish Purchased") +
+  theme(legend.position="none", plot.title=element_text(hjust=0.5))
+
+plot_Sweet <- ggplot(mkt_new, aes(x=log(mkt_new$MntSweetProducts))) +
+  geom_histogram(color="white",alpha=0.7, fill="purple") +
+  labs(title="Amount of Sweet Products Purchased") +
+  xlab("Amount of Sweet Products Purchased") +
+  theme(legend.position="none", plot.title=element_text(hjust=0.5))
+
+plot_Gold <-ggplot(mkt_new, aes(x=log(mkt_new$MntGoldProds+1))) +
+  geom_histogram(color="white",alpha=0.7, fill="pink") +
+  labs(title="Amount of Gold Purchased") +
+  xlab("Amount of Gold Purchased") +
+  theme(legend.position="none", plot.title=element_text(hjust=0.5))
+
+grid.arrange(plot_Meat, plot_fish, plot_Sweet, plot_Gold, ncol=2)
+```
+
+## Previous Campaign Response Rate
+```{r}
+cmp2 = mkt_new$AcceptedCmp2
+as.data.frame(sort(table(cmp2),decreasing = TRUE))
+```
+
+```{r}
+p1 <- ggplot(data = mkt_new, aes(x = factor(AcceptedCmp1), fill = factor(AcceptedCmp1))) +
+  geom_bar() +
+  ggtitle("AcceptedCmp1") +
+  guides(fill=FALSE)+
+  xlab("AcceptedCmp1") 
+p11 <- p1 + scale_fill_brewer(palette="Paired") + theme_minimal()
+
+p2 <- ggplot(data = mkt_new, aes(x = factor(AcceptedCmp2), fill = factor(AcceptedCmp2))) +
+  geom_bar() +
+  ggtitle("AcceptedCmp2") +
+  guides(fill=FALSE)+
+  xlab("AcceptedCmp2") 
+p21 <- p2 + scale_fill_brewer(palette="Paired") + theme_minimal()
+
+p3 <- ggplot(data = mkt_new, aes(x = factor(AcceptedCmp3), fill = factor(AcceptedCmp3))) +
+  geom_bar() +
+  ggtitle("AcceptedCmp3") +
+  guides(fill=FALSE)+
+  xlab("AcceptedCmp3") 
+p31 <- p3 + scale_fill_brewer(palette="Paired") + theme_minimal()
+
+p4 <- ggplot(data = mkt_new, aes(x = factor(AcceptedCmp4), fill = factor(AcceptedCmp4))) +
+  geom_bar() +
+  ggtitle("AcceptedCmp4") +
+  guides(fill=FALSE)+
+  xlab("AcceptedCmp4") 
+p41 <- p4 + scale_fill_brewer(palette="Paired") + theme_minimal()
+
+p5 <- ggplot(data = mkt_new, aes(x = factor(AcceptedCmp5), fill = factor(AcceptedCmp5))) +
+  geom_bar() +
+  ggtitle("AcceptedCmp5") +
+  guides(fill=FALSE)+
+  xlab("AcceptedCmp5") 
+p51 <- p5 + scale_fill_brewer(palette="Paired") + theme_minimal()
+
+grid.arrange(p11, p21, p31, p41, p51, ncol=2)
+```
+
+## Previous Response in Total
+```{r}
+ggplot(data = mkt_new, aes(x = factor(previous_response), fill = factor(previous_response))) +
+  geom_bar() +
+  ggtitle("previous_response") +
+  guides(fill=FALSE)+
+  xlab("previous_response") 
+```
+
+## Current Response
+```{r}
+ggplot(data = mkt_new, aes(x = factor(Response), fill = factor(Response))) +
+  geom_bar() +
+  ggtitle("Response") +
+  guides(fill=FALSE)+
+  xlab("Response") 
+```
+
+## Age
+```{r}
+ggplot(mkt_new, aes(x=log(mkt_new$Age))) +
+  geom_histogram(color="white",alpha=0.7, fill="dark green") +
+  labs(title="Age") +
+  theme(legend.position="none", plot.title=element_text(hjust=0.5))
+```
+
+## tenure
+```{r}
+ggplot(data = mkt_new, aes(x = factor(tenure), fill = factor(tenure))) +
+  geom_bar() +
+  ggtitle("tenure") +
+  guides(fill=FALSE)+
+  xlab("tenure") 
+```
+
+## 2D Correlation Plot
+```{r}
+library(vcd)
+```
+
+## Education
+```{r}
+mosaic(Response ~ Education, data = mkt_new)
+```
+
+## Marital Status
+```{r}
+mosaic(Response ~ Marital_Status, data = mkt_new)
+```
+
+## Previous Response
+```{r}
+mosaic(Response ~ previous_response, data = mkt_new)
+```
+
+## tenure
+```{r}
+mosaic(Response ~ tenure, data = mkt_new)
+```
+
+## Box Plot
+```{r}
+bp2 <- ggplot(data = mkt_new, aes(y=Recency, x = factor(Response), fill = factor(Response))) +
+  geom_boxplot() +
+  xlab("Response") +
+  ylab("Recency") +
+  ggtitle("Response VS Recency")
+c1 <- bp2 + scale_fill_brewer(palette="Paired") + theme_minimal()
+
+c2 <- ggplot(data = mkt_new, aes(y=log(MntWines), x = factor(Response), fill = factor(Response))) +
+  geom_boxplot() +
+  xlab("Response") +
+  ylab("MntWines") +
+  ggtitle("Response VS MntWines")
+
+c3 <-ggplot(data = mkt_new, aes(y=log(mkt_new$MntFruits), x = factor(Response), fill = factor(Response))) +
+  geom_boxplot() +
+  xlab("Response") +
+  ylab("MntFruits") +
+  ggtitle("Response VS MntFruits")
+
+c4 <-ggplot(data = mkt_new, aes(y=log(mkt_new$MntMeatProducts), x = factor(Response), fill = factor(Response))) +
+  geom_boxplot() +
+  xlab("Response") +
+  ylab("MntMeatProducts") +
+  ggtitle("Response VS MntMeatProducts")
+
+c5 <-ggplot(data = mkt_new, aes(y=log(mkt_new$MntFishProducts), x = factor(Response), fill = factor(Response))) +
+  geom_boxplot() +
+  xlab("Response") +
+  ylab("MntFishProducts") +
+  ggtitle("Response VS MntFishProducts")
+
+c6 <-ggplot(data = mkt_new, aes(y=log(mkt_new$MntGoldProds), x = factor(Response), fill = factor(Response))) +
+  geom_boxplot() +
+  xlab("Response") +
+  ylab("MntGoldProds") +
+  ggtitle("Response VS MntGoldProds")
+
+grid.arrange(c1, c2, c3, c4, c5, c6, ncol=2)
+```
+
+## Age
+```{r}
+bp3 <- ggplot(data = mkt_new, aes(y=log(mkt_new$Age), x = factor(Response), fill = factor(Response))) +
+  geom_boxplot() +
+  xlab("Response") +
+  ylab("Age") +
+  ggtitle("Response VS Age")
+bp3 + scale_fill_brewer(palette="BuGn") + theme_minimal()
+```
+
+

@@ -1,0 +1,185 @@
+---
+title: "Marketing Campaign Modeling"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(dplyr)
+```
+
+```{r}
+mkt <- read.csv("marketing_campaign.csv", sep = ';')
+```
+
+## Data Cleaning
+```{r}
+mkt$Income <- ifelse(is.na(mkt$Income), round(mean(mkt$Income, na.rm = TRUE), 0), mkt$Income)
+```
+
+```{r}
+mkt$previous_response <- mkt$AcceptedCmp1+mkt$AcceptedCmp2+mkt$AcceptedCmp3+mkt$AcceptedCmp4+ mkt$AcceptedCmp5
+```
+
+```{r}
+library(lubridate)
+```
+
+```{r}
+mkt$year = substr(mkt$Dt_Customer, 1, 4)
+mkt$date_now <- today()
+mkt$year_now = substr(mkt$date_now, 1, 4)
+mkt$tenure = as.numeric(mkt$year_now) - as.numeric(mkt$year)
+mkt$Age = as.numeric(mkt$year_now) - as.numeric(mkt$Year_Birth)
+```
+
+```{r}
+mkt_new <- mkt[ , c(3:7,9:30, 34:35)]
+```
+
+```{r}
+unique(mkt_new$Marital_Status)
+```
+
+```{r}
+Single <- c('Single')
+Married <- c("Together", "Married")
+Alone <- c("Divorced", "Widow", "Alone")
+Not_sure <- c("Absurd", "YOLO")
+```
+
+```{r}
+mkt_new$Marital_Status = sapply(as.vector(mkt_new$Marital_Status), function(x) if(x %in% Single) "Single" else x )
+mkt_new$Marital_Status = sapply(as.vector(mkt_new$Marital_Status), function(x) if(x %in% Married) "Married" else x )
+mkt_new$Marital_Status = sapply(as.vector(mkt_new$Marital_Status), function(x) if(x %in% Alone) "Alone" else x )
+mkt_new$Marital_Status = sapply(as.vector(mkt_new$Marital_Status), function(x) if(x %in% Not_sure) "Not_sure" else x )
+```
+
+```{r}
+unique(mkt_new$Marital_Status)
+```
+
+## Train and Test
+```{r}
+## 80% of the sample size
+set.seed(123)
+smp_size <- floor(0.80 * nrow(mkt_new))
+
+## set the seed to make your partition reproducible
+train_ind_mkt <- sample(seq_len(nrow(mkt_new)), size = smp_size)
+train_mkt <- mkt_new[train_ind_mkt, ]
+test_mkt <- mkt_new[-train_ind_mkt, ]
+```
+
+## Lasso
+```{r}
+##install.packages("glmnet")
+library(glmnet)
+```
+
+```{r}
+x_train_mkt = model.matrix(Response~., train_mkt)[,-1]
+
+y_train_mkt = train_mkt %>%
+  select(Response) %>%
+  unlist() %>%
+  as.numeric()
+```
+
+```{r}
+lasso_mod_mkt = glmnet(x_train_mkt,
+                   y_train_mkt,
+                   alpha = 1)
+plot(lasso_mod_mkt)
+```
+
+```{r}
+set.seed(12)
+cv.out_mkt = cv.glmnet(x_train_mkt, y_train_mkt, alpha = 1)
+plot(cv.out_mkt)
+```
+
+```{r}
+bestlam_mkt = cv.out_mkt$lambda.min
+bestlam_mkt
+```
+
+```{r}
+lasso.treatment_mkt = glmnet(x_train_mkt, y_train_mkt, alpha = 1, lambda = bestlam_mkt)
+coef(lasso.treatment_mkt)
+```
+
+## Logistic Regression
+```{r}
+glm_mkt <- glm(factor(Response)~Education+Marital_Status+Kidhome+Teenhome+Recency+MntFruits+MntMeatProducts+MntSweetProducts+MntGoldProds+NumDealsPurchases+NumWebPurchases+NumCatalogPurchases+NumStorePurchases+NumWebVisitsMonth+previous_response+tenure+Age, data = train_mkt, family = binomial(link = 'logit'))
+summary(glm_mkt)
+```
+
+## Revised Logistic Model
+```{r}
+glm_mkt1 <- glm(as.factor(Response)~Education+Marital_Status+Kidhome+Teenhome+Recency+MntMeatProducts+NumDealsPurchases+NumWebPurchases+NumCatalogPurchases+NumStorePurchases+NumWebVisitsMonth+previous_response+tenure, data = train_mkt, family = binomial(link = 'logit'))
+summary(glm_mkt1)
+```
+
+## ROC
+```{r}
+##install.packages("ROCR")
+```
+
+```{r}
+library(ROCR)
+glm_mkt_value <- predict.glm(glm_mkt1, type="response", newdata = test_mkt)
+pr <- prediction(glm_mkt_value, test_mkt$Response)
+prf <- performance(pr, measure = "tpr", x.measure = "fpr")
+plot(prf, colorize = TRUE)
+```
+
+```{r}
+auc <- performance(pr, measure = "auc")
+auc <- auc@y.values[[1]]
+auc
+```
+
+## Decision Tree
+```{r}
+##install.packages("rpart.plot")	
+```
+
+```{r}
+library(rpart)
+library(rpart.plot)
+```
+
+```{r}
+tree_mkt = rpart(factor(Response)~Education+Marital_Status+Teenhome+Recency+MntFruits+MntMeatProducts+MntGoldProds+NumDealsPurchases+NumWebPurchases+NumCatalogPurchases+NumStorePurchases+NumWebVisitsMonth+Complain+previous_response+tenure, data = train_mkt, method='class')
+require("rpart.plot")
+rpart.plot::rpart.plot(tree_mkt, type = 2, fallen.leaves = FALSE, extra = 4)
+```
+
+# Random Forest 
+```{r}
+##install.packages("randomForest")
+library(randomForest)
+require(caTools)
+```
+
+```{r}
+rf_mkt <- randomForest(factor(Response)~Education+Teenhome+Recency+MntFruits+MntMeatProducts+MntGoldProds+NumDealsPurchases+NumWebPurchases+NumCatalogPurchases+NumStorePurchases+NumWebVisitsMonth+Complain+previous_response+tenure, data = train_mkt, mtry = 4, nodesize = 5, ntree = 500)
+rf_mkt
+```
+
+```{r}
+pred_mkt <- as.numeric(as.character(predict(rf_mkt, newdata = test_mkt)))
+```
+
+```{r}
+importance(rf_mkt)
+varImpPlot(rf_mkt)
+```
+
+
+
+
